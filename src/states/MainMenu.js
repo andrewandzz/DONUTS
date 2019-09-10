@@ -1,23 +1,23 @@
 class MainMenu extends Phaser.State {
 	init(fromPlayMode) {
-		this.game.fromPlayMode = fromPlayMode;
+		this.fromPlayMode = fromPlayMode; // are we back from play mode
 	}
 
 	create() {
-		const LOGO_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 4,
-			  LOGO_MARGIN_TOP = .2,
-			  BTN_PLAY_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 4.5,
-			  BTN_PLAY_MARGIN_BOTTOM = this.world.height * .85,
-			  BTN_SOUND_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 10,
-			  SCORE_BOARD_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 7,
-			  SCORE_BOARD_MARGIN_TOP = .05;
+		const LOGO_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 4;
+		const LOGO_MARGIN_TOP = .2;
+		const BTN_PLAY_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 4.5;
+		const BTN_PLAY_MARGIN_BOTTOM = this.world.height * .85;
+		const BTN_SOUND_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 10;
+		const SCORE_BOARD_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 7;
+		const SCORE_BOARD_MARGIN_TOP = .05;
 
 
-		this.game.BIAS = 30; // it will be used as +- bias when catching big donut on some position
-		this.game.BTN_PLAY_SCALE = 1;
-		this.game.rollLogoBack = false;
-		this.game.rollDonut = false;
-		this.game.logoStopAngle = 3;
+		this.BIAS = 30; // it will be used as +- bias when catching big donut on some position
+		this.BTN_PLAY_SCALE = 1;
+		this.rollLogoBack = false;
+		this.rollDonut = false;
+		this.logoStopRollAngle = 3;
 
 
 		// BACKGROUND
@@ -56,11 +56,11 @@ class MainMenu extends Phaser.State {
 		btnPlay.anchor.setTo(.5, 1);
 
 		if (btnPlay.height > BTN_PLAY_MAX_HEIGHT) {
-			this.game.BTN_PLAY_SCALE = BTN_PLAY_MAX_HEIGHT / btnPlay.height;
+			this.BTN_PLAY_SCALE = BTN_PLAY_MAX_HEIGHT / btnPlay.height;
 		}
 
 		btnPlay.alpha = 0;
-		btnPlay.scale.setTo(this.game.BTN_PLAY_SCALE / 2);
+		btnPlay.scale.setTo(this.BTN_PLAY_SCALE / 2);
 		// physics
 		this.physics.arcade.enable(btnPlay);
 		btnPlay.body.gravity.y = 500;
@@ -153,7 +153,7 @@ class MainMenu extends Phaser.State {
 		bgMusic.loop = true;
 		this.game.sound.mute = this.isMutedStateSaved();
 
-		if (!this.game.fromPlayMode) {
+		if (!this.fromPlayMode) {
 			bgMusic.play();
 		}
 
@@ -181,21 +181,21 @@ class MainMenu extends Phaser.State {
 
 		this.waveLogo();
 
-		if (this.game.rollDonut) {
+		if (this.rollDonut) {
 			this.game.bigDonut.x -= 30 / window.devicePixelRatio;
 			this.game.bigDonut.angle -= 4;
 			this.game.donutShadow.x -= 30 / window.devicePixelRatio;
 		}
 
 		// donut in on center
-		if (this.game.bigDonut.x > this.world.centerX - this.game.BIAS
-			&& this.game.bigDonut.x < this.world.centerX + this.game.BIAS) {
+		if (this.game.bigDonut.x > this.world.centerX - this.BIAS
+			&& this.game.bigDonut.x < this.world.centerX + this.BIAS) {
 			this.clearMenuScreen();
 		}
 
 		// donut is touching the left side of the screen
-		if (this.game.bigDonut.x > 0 - this.game.BIAS
-			&& this.game.bigDonut.x < 0 + this.game.BIAS) {
+		if (this.game.bigDonut.x > 0 - this.BIAS
+			&& this.game.bigDonut.x < 0 + this.BIAS) {
 			this.openScoreBoard();
 		}
 
@@ -207,18 +207,18 @@ class MainMenu extends Phaser.State {
 
 
 	popUpBtnPlay() {
-		this.game.add.tween(this.game.btnPlay.scale).to({x: this.game.BTN_PLAY_SCALE, y: this.game.BTN_PLAY_SCALE}, 300, Phaser.Easing.Back.Out, true);
+		this.game.add.tween(this.game.btnPlay.scale).to({x: this.BTN_PLAY_SCALE, y: this.BTN_PLAY_SCALE}, 300, Phaser.Easing.Back.Out, true);
 		this.game.add.tween(this.game.btnPlay).to({alpha: 1}, 100, Phaser.Easing.Linear.None, true);
 	}
 
 
 	waveLogo() {
-		if (this.game.logo.angle >= this.game.logoStopAngle)
-			this.game.rollLogoBack = true;
-		else if (this.game.logo.angle <= -this.game.logoStopAngle)
-			this.game.rollLogoBack = false;
+		if (this.game.logo.angle >= this.logoStopRollAngle)
+			this.rollLogoBack = true;
+		else if (this.game.logo.angle <= -this.logoStopRollAngle)
+			this.rollLogoBack = false;
 		
-		if (this.game.rollLogoBack)
+		if (this.rollLogoBack)
 			this.game.logo.angle -= .01;
 		else
 			this.game.logo.angle += .01;
@@ -237,7 +237,7 @@ class MainMenu extends Phaser.State {
 
 	btnPlayDown() {
 		this.game.soundSelect.play();
-		this.game.rollDonut = true;
+		this.rollDonut = true;
 	}
 
 

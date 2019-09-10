@@ -1,42 +1,43 @@
-import Matrix from '../Matrix';
+import Matrix from '../objects/Matrix';
+import Gems from '../objects/Gems';
+import Hand from '../objects/Hand';
+import Hint from '../objects/Hint';
+import PopupText from '../objects/PopupText';
 
 class Play extends Phaser.State {
 	create() {
-		const SIDE_MARGIN = this.world.width / 7,
-			  BOTTOM_MARGIN = (this.world.height - this.game.scoreBoard.bottom) / 10,
-			  GEM_SIZE = 100, // in pixels
-			  TIME = 60, // in seconds
-			  COLS = Math.floor((this.world.width - SIDE_MARGIN * 2) / GEM_SIZE),
-			  ROWS = Math.floor((this.world.height - this.game.scoreBoard.bottom - BOTTOM_MARGIN * 1.3) / GEM_SIZE),
-			  WALL_LEFT = (this.world.width - (COLS * GEM_SIZE)) / 2,
-			  WALL_RIGHT = this.world.width - WALL_LEFT,
-			  WALL_BOTTOM = this.world.height - BOTTOM_MARGIN,
-			  SCORE_TEXT_HEIGHT = this.game.scoreBoard.height / 7 * 3,
-			  SCOTE_TEXT_MARGIN_TOP = this.game.scoreBoard.height / 3,
-			  TIME_BOARD_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 9,
-			  TIME_BOARD_MARGIN = .1,
-			  TEXT_TIME_UP_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 8;
+		const SIDE_MARGIN = this.world.width / 7;
+		const BOTTOM_MARGIN = (this.world.height - this.game.scoreBoard.bottom) / 10;
+		const GEM_SIZE = 100; // in pixels
+		const TIME = 60; // in seconds
+		const COLS = Math.floor((this.world.width - SIDE_MARGIN * 2) / GEM_SIZE);
+		const ROWS = Math.floor((this.world.height - this.game.scoreBoard.bottom - BOTTOM_MARGIN * 1.3) / GEM_SIZE);
+		const WALL_LEFT = (this.world.width - (COLS * GEM_SIZE)) / 2;
+		const WALL_RIGHT = this.world.width - WALL_LEFT;
+		const WALL_BOTTOM = this.world.height - BOTTOM_MARGIN;
+		const SCORE_TEXT_HEIGHT = this.game.scoreBoard.height / 7 * 3;
+		const SCOTE_TEXT_MARGIN_TOP = this.game.scoreBoard.height / 3;
+		const TIME_BOARD_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 9;
+		const TIME_BOARD_MARGIN = .1;
+		const TEXT_TIME_UP_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 8;
 
-
-		const gemID = () => {
-			let id = 0;
-
-			return () => {
-				return ++id;
-			}
-		}
 
 
 		// make some variables global
-		this.MATRIX = new Matrix(COLS, ROWS, this);
+		this.matrix = new Matrix(COLS, ROWS, this);
+		this.hand = new Hand(this.game, this.matrix);
+		this.hint = new Hint(this.game, this.matrix);
+		this.popupText = new PopupText(this.game, this.matrix);
 		this.game.SCORE = 0;
 		this.game.TIME = TIME;
+		this.SHOW_HINT_COUNTDOWN_TIME = 7; // in seconds
+		this.ROTATE_GEMS_COUNTDOWN_TIME = 8; // in seconds
+		this.TUTORIAL_IS_SHOWN = this.checkTutorialIsShown();
 		this.game.GEM_SIZE = GEM_SIZE;
 		this.game.COLS = COLS;
 		this.game.ROWS = ROWS;
 		this.game.WALL_LEFT = WALL_LEFT;
 		this.game.WALL_BOTTOM = WALL_BOTTOM;
-		this.game.getGemID = gemID();
 		this.game.gemsOverlap = false;
 		this.game.updateScore = this.updateScore;
 		this.game.rollDonut = false;
@@ -54,20 +55,17 @@ class Play extends Phaser.State {
 		this.game.isExploading = false;
 
 
-		// SHADOWS GROUP
-		this.game.shadowsGroup = this.game.add.group();
-
-
-		// GEMS GROUP
-		const gemsGroup = this.game.gemsGroup = this.game.add.physicsGroup(Phaser.Physics.ARCADE);
-		gemsGroup.enableBody = true;
-
-
-
-		this.MATRIX.generateMatrix();
-		this.renderGems();
-		this.countdownToHint();
-
+		this.matrix.generateMatrix();
+		this.game.gems = new Gems(this.game, this.matrix);
+		this.game.gems.render();
+		
+		
+		if (!this.TUTORIAL_IS_SHOWN) {
+			this.showTutorial();
+		} else {
+			this.startGameTimeLoops();
+		}
+		
 
 
 		// TIME BOARD
@@ -154,10 +152,6 @@ class Play extends Phaser.State {
 		this.game.soundKill = this.game.sound.add('kill');
 		this.game.soundKill.volume = .5;
 		this.game.soundKill.loop = false;
-
-
-		this.game.gameTimer = this.game.time.events.loop(Phaser.Timer.SECOND, this.updateTime, this);
-		this.game.rotateGemsLoop = this.game.time.events.loop(Phaser.Timer.SECOND * 8, this.rotateGems, this);
 	}
 
 
@@ -214,138 +208,6 @@ class Play extends Phaser.State {
 	}
 
 
-	renderGems() {
-		if (this.game.IS_GAME_OVER) return;
-
-		const MATRIX = this.MATRIX.getMatrix();
-
-		MATRIX.forEach((colArr, colIndex) => {
-			colArr.forEach((gemData, cellIndex) => {
-				// if we already have gem with this ID (name)
-				if (this.game.gemsGroup.getByName(gemData.id)) return;
-
-				this.createGem(colIndex, cellIndex, gemData.id, gemData.number);
-			});
-		});
-
-		return new Promise(resolve => {
-			setTimeout(() => {
-				resolve();
-			}, 250);
-		});
-	}
-
-
-	createGem(col, cell, gemID, gemNumber) {
-		const gemPosition = this.getGemPositionByCell({col, cell});
-
-		// SHADOW
-		const shadow = this.game.shadowsGroup.create(0, 0, 'gem-shadow');
-		shadow.alpha = .9;
-		shadow.anchor.setTo(.5);
-		shadow.name = gemID;
-		shadow.left = gemPosition.x - this.game.SHADOW_MARGIN;
-		shadow.top = gemPosition.y - this.game.SHADOW_MARGIN;
-		shadow.scale.setTo(.1);
-		this.game.add.tween(shadow.scale).to({x: 1, y: 1}, 200, Phaser.Easing.Back.Out, true);
-
-		const isBonusGem = (this.game.notRotateNumbers.indexOf('' + gemNumber) !== -1) ? true : false;
-
-		const gemAngle = (!isBonusGem) ? Math.floor(Math.random() * 360) : 0;
-
-		// GEM
-		const gem = this.game.gemsGroup.create(0, 0, 'gem-' + gemNumber);
-		gem.name = gemID;
-		gem.anchor.setTo(.5);
-		gem.left = gemPosition.x;
-		gem.top = gemPosition.y;
-		gem.scale.setTo(.1);
-		gem.angle = gemAngle;
-		gem.inputEnabled = true;
-		gem.input.enableDrag(false);
-
-		this.game.add.tween(gem.scale).to({x: 1, y: 1}, 200, Phaser.Easing.Back.Out, true);
-		gem.events.onDragStart.add(this.onDragStart, this);
-		gem.events.onDragStop.add(this.onDragStop, this);
-
-		return gem;
-	}
-
-
-	onDragStart(gem, pointer) {
-		this.game.dragDirection = null;
-		this.game.dragStartPosX = pointer.clientX;
-		this.game.dragStartPosY = pointer.clientY;
-		gem.events.onDragUpdate.add(this.onDragUpdate, this);
-	}
-
-
-	onDragUpdate(gem, pointer) {
-		const shadow = this.game.shadowsGroup.getByName(gem.name);
-		shadow.left = gem.left - this.game.SHADOW_MARGIN;
-		shadow.top = gem.top - this.game.SHADOW_MARGIN;
-
-		if (!this.game.dragDirection) {
-			this.getDragDirection(gem, pointer);
-		}
-		
-		this.checkDragDistance(gem, pointer);
-	}
-
-
-	onDragStop(gem) {
-		// if stopped dragging not overlapped next gem
-		if (!this.game.gemsOverlap) {
-			const gemCell = this.MATRIX.getGemCell(gem.name);
-			const gemPosition = this.getGemPositionByCell(gemCell);
-
-			this.moveToXY(gem, gemPosition.x, gemPosition.y);
-		}
-
-		gem.events.onDragUpdate.removeAll();
-	}
-
-
-	getDragDirection(gem, pointer) {
-		const left = Math.abs(pointer.clientX - this.game.dragStartPosX);
-		const top = Math.abs(pointer.clientY - this.game.dragStartPosY);
-
-		if (left !== top) {
-			if (left > top){
-				gem.input.allowVerticalDrag = false;
-				gem.input.allowHorizontalDrag = true;
-				this.game.dragDirection = 'hor';
-
-			} else {
-				gem.input.allowHorizontalDrag = false;
-				gem.input.allowVerticalDrag = true;
-				this.game.dragDirection = 'ver';
-			}
-		}
-	}
-
-	// to prevent throwing the gem out
-	checkDragDistance(gem, pointer) {
-		const left = Math.abs(pointer.clientX - this.game.dragStartPosX);
-		const top = Math.abs(pointer.clientY - this.game.dragStartPosY);
-
-		if (this.game.dragDirection === 'hor') {
-			if (left >= this.game.GEM_SIZE) {
-				gem.input.allowHorizontalDrag = false;
-			} else {
-				gem.input.allowHorizontalDrag = true;
-			}
-
-		} else if (this.game.dragDirection === 'ver') {
-			if (top >= this.game.GEM_SIZE) {
-				gem.input.allowVerticalDrag = false;
-			} else {
-				gem.input.allowVerticalDrag = true;
-			}
-		}		
-	}
-
-
 	async onGemsOverlap(gem1, gem2) {
 		// to prevent second call
 		if (this.game.gemsOverlap) return;
@@ -353,146 +215,62 @@ class Play extends Phaser.State {
 		this.game.gemsOverlap = true;
 		gem1.input.disableDrag();
 
+		if (!this.TUTORIAL_IS_SHOWN) {
+			this.TUTORIAL_IS_SHOWN = true;
+			this.removeTutorial();
+		}
+
 		try {
-			await this.swapGems(gem1, gem2);
+			await this.game.gems.swap(gem1, gem2);
 
 			if (await this.checkForMatches() === false) {
 				// swap gems back
 				this.game.gemsOverlap = true;
 				gem1.input.disableDrag();
-				this.swapGems(gem1, gem2);
+				this.game.gems.swap(gem1, gem2);
 			}
-		} catch (e) {
-			console.log(e);
-		}	
-	}
 
-
-	async swapGems(gem1, gem2) {
-		// FIRST GEM
-		const gem1Cell = this.MATRIX.getGemCell(gem1.name);
-
-		const gem1Position = this.getGemPositionByCell(gem1Cell);
-		this.moveToXY(gem2, gem1Position.x, gem1Position.y);
-
-		// SECOND GEM
-		const gem2Cell = this.MATRIX.getGemCell(gem2.name);
-		
-		const gem2Position = this.getGemPositionByCell(gem2Cell);
-		await this.moveToXY(gem1, gem2Position.x, gem2Position.y);
-
-		this.MATRIX.swapGems(gem1.name, gem2.name);
-
-		gem1.input.enableDrag(false);
-		gem2.input.enableDrag(false);
+		} catch(e) { console.log(e); }	
 	}
 
 
 	async checkForMatches() {
-		const matchedIDs = this.MATRIX.checkForMatches();
+		const matchedIDs = this.matrix.checkForMatches();
 
 		if (matchedIDs) {
 			this.game.gemsOverlap = true; // TRUE to prevent listening for overlapping
 			this.game.gemsGroup.setAll('inputEnabled', false);
-			this.calculatePoints(this.MATRIX.getMatchedIDsArrays());
+			this.calculatePoints(this.matrix.getMatchedIDsArrays());
 			this.game.isExploading = true;
-			this.MATRIX.removeMatchedGems();
+			this.matrix.removeMatchedGems();
+
 			try {
-				await this.explodeGems(matchedIDs);
-			} catch (e) {
-				console.log(e);
-			}
-			await this.moveDownRestGems();
-			this.MATRIX.addNewGems();
-			await this.renderGems();
-			this.countdownToHint();
+				await this.game.gems.explode(matchedIDs);
+			} catch(e) { console.log(e); }
+
+			await this.game.gems.moveDownRest();
+			this.matrix.addNewGems();
+			await this.game.gems.render();
 			this.checkForMatches();
 			return true;
+
 		} else {
 			// no more matches
-			if (!this.MATRIX.checkForPosibles()) {
-				this.game.time.events.add(Phaser.Timer.SECOND * 3,
-					() => { this.gameOver('no-turns'); }, 
-					this);
+			if (!this.matrix.checkForPosibles()) {
+
+				this.gameOverTimer = window.setTimeout(() => {
+					window.clearTimeout(this.gameOverTimer);
+					this.gameOver('no-turns');
+				}, 3000);
+
 				return false;
 			}
 
 			this.game.gemsGroup.setAll('inputEnabled', true);
 			this.game.isExploading = false;
-			this.countdownToHint();
+			this.countDownToHint();
 			return false;
 		}
-	}
-
-
-	moveToXY(gemToMove, newX, newY) {
-		const START_TIME = performance.now(),
-			  DURATION = 200,
-			  START_X = gemToMove.left,
-			  START_Y = gemToMove.top,
-			  leftDist = newX - START_X,
-			  topDist = newY - START_Y;
-
-		const shadowToMove = this.game.shadowsGroup.getByName(gemToMove.name);
-
-		return new Promise(resolve => {
-			let progress = 0;
-
-			const move = curTime => {
-				progress = (curTime - START_TIME) / DURATION;
-
-				if (progress >= 1) {
-					// MOVING IS FINISHED
-					progress = 1;
-					this.game.gemsOverlap = false;
-					resolve();
-				}
-
-				gemToMove.left = START_X + (leftDist * progress);
-				gemToMove.top = START_Y + (topDist * progress);
-
-				shadowToMove.left = START_X + (leftDist * progress) - this.game.SHADOW_MARGIN;
-				shadowToMove.top = START_Y + (topDist * progress) - this.game.SHADOW_MARGIN;
-
-				if (progress < 1) {
-					requestAnimationFrame(move);
-				}
-			}
-
-			requestAnimationFrame(move);
-		});
-	}
-
-
-	getGemPositionByCell(cell) {
-		return {
-			x: this.game.WALL_LEFT + cell.col * this.game.GEM_SIZE,
-			y: this.game.WALL_BOTTOM - cell.cell * this.game.GEM_SIZE - this.game.GEM_SIZE
-		};
-	}
-
-
-	moveDownRestGems() {
-		this.game.gemsGroup.forEach(gem => {
-			this.moveToMatrixPosition(gem);
-		});
-
-		return new Promise(resolve => {
-			setTimeout(() => {
-				resolve()
-			}, 200);
-		});
-		
-	}
-
-
-	moveToMatrixPosition(gem) {
-		const gemCell = this.MATRIX.getGemCell(gem.name);
-
-		const gemX = this.game.WALL_LEFT + gemCell.col * this.game.GEM_SIZE;
-		const gemY = this.game.WALL_BOTTOM - gemCell.cell * this.game.GEM_SIZE - this.game.GEM_SIZE;
-
-		this.moveToXY(gem, gemX, gemY);
 	}
 
 
@@ -505,13 +283,12 @@ class Play extends Phaser.State {
 			this.checkForTimeOrDouble(group);
 			this.addPoints(group);
 			this.addTime((group.length - 3) * TIME_TO_ADD, group);
+			this.addTime((numberOfGroups - 1) * TIME_TO_ADD, group);
 		});
 
 		if (numberOfGroups === NUM_OF_GROUPS_FOR_BONUS) {
-			this.MATRIX.getBonus = true;
+			this.matrix.getBonus = true;
 		}
-
-		this.addTime((numberOfGroups - 1) * TIME_TO_ADD);
 	}
 
 
@@ -548,17 +325,17 @@ class Play extends Phaser.State {
 		}
 
 		this.updateScore(pointsToAdd);
-		this.showAddedPoints(group, pointsToAdd);
+		this.popupText.show(group, pointsToAdd);
 	}
 
 
 	addTime(secondsToAdd, group) {
 		if (secondsToAdd === 0) return;
 
-		const curSeconds = this.game.TIME,
-			   newSeconds = curSeconds + secondsToAdd,
-			   distance = newSeconds - curSeconds,
-			   DURATION = 200;
+		const curSeconds = this.game.TIME;
+		const newSeconds = curSeconds + secondsToAdd;
+		const distance = newSeconds - curSeconds;
+		const DURATION = 200;
 
 		const startTime = performance.now();
 		let progress = 0, newNumber;
@@ -580,169 +357,16 @@ class Play extends Phaser.State {
 
 		this.game.TIME += secondsToAdd;
 
-		this.showAddedSeconds(group, secondsToAdd);
-	}
-
-
-	showAddedPoints(group, pointsToAdd) {
-		const textPosition = this.getTextToShowPosition(group);
-		this.showAddedText(textPosition, pointsToAdd);
-	}
-
-
-	showAddedSeconds(group, secondsToAdd) {
-		let textPosition;
-
-		if (group) {
-			textPosition = this.getTextToShowPosition(group);
-		} else {
-			textPosition = {
-				x: this.world.centerX,
-				y: this.world.centerY
-			};
-		}
-
-		this.showAddedText(textPosition, secondsToAdd + 's');
-	}
-
-
-	showAddedText(textPosition, textToShow) {
-		const GEM_SIZE = this.game.GEM_SIZE;
-		const text = this.game.add.text(
-			textPosition.x,
-			textPosition.y, '+' + textToShow);
-
-		if (textToShow.toString().indexOf('s') !== -1) {
-			// this is text for seconds
-			// so show it a littile aside
-			text.x += text.width;
-			text.y += text.height;
-		}
-
-		text.fill = '#fff';
-		text.font = 'Fredoka One';
-		text.fontSize = this.game.scoreBoard.height / 3;
-		text.anchor.setTo(.5);
-		text.scale.setTo(.3);
-		text.alpha = 0;
-		text.setShadow(GEM_SIZE * .02, GEM_SIZE * .04, 'rgba(78, 46, 90, .6)');
-		const scaleTween = this.game.add.tween(text.scale).to({x: 1, y: 1}, 300, Phaser.Easing.Back.Out, true);
-		this.game.add.tween(text).to({y: text.y - GEM_SIZE / 2}, 500, Phaser.Easing.Circular.Out, true);
-		this.game.add.tween(text).to({alpha: 1}, 100, Phaser.Easing.Linear.None, true);
-
-		scaleTween.onComplete.add(() => {
-			const fadeOutTween = this.game.add.tween(text).to({alpha: 0}, 300, Phaser.Easing.Linear.None, true);
-			fadeOutTween.onComplete.add(() => {
-				text.destroy();
-			});
-		}, this);
-	}
-
-
-	getTextToShowPosition(group) {
-		// 1. find position of the first and the last gem in group
-		// 2. get center position
-
-		// 1st step
-		const firstGemID = group[0];
-		const lastGemID = group[group.length - 1];
-		const firstGemCell = this.MATRIX.getGemCell(firstGemID);
-		const lastGemCell = this.MATRIX.getGemCell(lastGemID);
-		const firstGemPosition = this.getGemPositionByCell(firstGemCell);
-		const lastGemPosition = this.getGemPositionByCell(lastGemCell);
-
-		// 2nd step
-		const distanceX = Math.max(firstGemPosition.x, lastGemPosition.x) - Math.min(firstGemPosition.x, lastGemPosition.x);
-		const textX = Math.min(firstGemPosition.x, lastGemPosition.x) + distanceX / 2;
-
-		const distanceY = Math.max(firstGemPosition.y, lastGemPosition.y) - Math.min(firstGemPosition.y, lastGemPosition.y);
-		const textY = Math.min(firstGemPosition.y, lastGemPosition.y) + distanceY / 2;
-
-		return {
-			x: textX + this.game.GEM_SIZE / 2,
-			y: textY + this.game.GEM_SIZE / 2
-		};
+		this.popupText.show(group, secondsToAdd + 's');
 	}
 
 
 	checkForTimeOrDouble(groupOfIDs) {
 		groupOfIDs.forEach(id => {
-			const gemNumber = this.MATRIX.getGemDataByID(id).number;
-			if (gemNumber === 'a') this.addTime(5);
+			const gemNumber = this.matrix.getGemDataByID(id).number;
+
+			if (gemNumber === 'a') this.addTime(5, groupOfIDs);
 			if (gemNumber === 'b') this.game.doublePoints = true;
-		});
-	}
-
-
-	explodeGems(matchedIDs) {
-		return new Promise(resolve => {
-			const destroy = (gem, shadow) => {
-				gem.destroy();
-				shadow.destroy();
-				resolve();
-			}
-
-			const showParticles = (emitter, emitterExp) => {
-				emitter.start(true, 500, null, 4);
-				emitterExp.start(true, 500, null, 3);
-			}
-
-			matchedIDs.forEach(id => {
-				const gem = this.game.gemsGroup.getByName(id);
-				const gemNumber = gem.key.split('-')[1];
-				let particleNumber;
-
-				// if 'a' or 'b' or more than 5
-				if (isNaN(gemNumber) || gemNumber > 5) {
-					particleNumber = 4;
-				} else {
-					particleNumber = gemNumber;
-				}
-
-				const shadow = this.game.shadowsGroup.getByName(id);
-
-
-				const emitter = this.game.add.emitter(gem.x, gem.y, 6);
-				const emitterScale = .5 + Math.ceil(Math.random() * 5) / 10;
-				emitter.makeParticles('particle-' + particleNumber);
-				emitter.setAlpha(.9, 0, 400, Phaser.Easing.Linear.None);
-				emitter.gravity = 20;
-				emitter.setScale(emitterScale, 0, emitterScale, 0, 500, Phaser.Easing.Linear.None);
-				emitter.setXSpeed(-100, 100);
-				emitter.setYSpeed(-100, 100);
-				emitter.blendMode = Phaser.blendModes.OVERLAY;
-				
-
-				const emitterExp = this.game.add.emitter(gem.x, gem.y, 3);
-				emitterExp.makeParticles(['particle_ex-1', 'particle_ex-2', 'particle_ex-3']);
-				emitterExp.setAlpha(.9, 0, 400, Phaser.Easing.Linear.None);
-				emitterExp.gravity = 20;
-				emitterExp.setScale(.9, 0, .9, 0, 500, Phaser.Easing.Linear.None);
-				emitterExp.setXSpeed(-100, 100);
-				emitterExp.setYSpeed(-100, 100);
-				emitterExp.blendMode = Phaser.blendModes.OVERLAY;
-				
-
-				// FADING OUT TWEEN
-				this.game.add.tween(gem).to({alpha: 0}, 120, Phaser.Easing.Linear.None, true);
-				const scaleOutTween = this.game.add.tween(gem.scale).to({x: 0, y: 0}, 120, Phaser.Easing.Back.In, true);
-
-				this.game.add.tween(shadow).to({alpha: 0}, 120, Phaser.Easing.Linear.None, true);
-				this.game.add.tween(shadow.scale).to({x: 0, y: 0}, 120, Phaser.Easing.Back.In, true);
-
-
-
-				scaleOutTween.onComplete.add(() => {
-					showParticles(emitter, emitterExp);
-				}, this);
-
-				this.game.time.events.add(300, () => { // 300 ms
-					destroy(gem, shadow);
-				}, this);
-
-				this.game.soundKill.play();
-
-			});
 		});
 	}
 
@@ -775,14 +399,6 @@ class Play extends Phaser.State {
 	}
 
 
-	jumpScoreText() {
-		const scoreText = this.game.scoreText;
-
-		this.game.add.tween(scoreText).to({y: scoreText.x - scoreText.height * .1}, 60, Phaser.Easing.Linear.None, true, 0, 0, true);
-		this.game.add.tween(scoreText.scale).to({x: 1.2, y: 1.2}, 60, Phaser.Easing.Linear.None, true, 0, 0, true);
-	}
-
-
 	formatTime(secs) {
 		const minutes = Math.floor(secs / 60);
 		const seconds = secs % 60;
@@ -803,20 +419,6 @@ class Play extends Phaser.State {
 		const result = withCommas.split('').reverse().join('');
 		
 		return result;
-	}
-
-
-	rotateGems() {
-		this.game.gemsGroup.forEach(gem => {
-			const curAngle = gem.angle;
-			const newAngle = curAngle + Math.ceil(Math.random() * 40) - 20;
-			const gemNumber = gem.key.split('-')[1];
-
-			// if it's not a bonus gem
-			if (this.game.notRotateNumbers.indexOf(gemNumber) === -1) {
-				this.game.add.tween(gem).to({angle: newAngle}, 500, Phaser.Easing.Bounce.Out, true);
-			}
-		});
 	}
 
 
@@ -852,18 +454,20 @@ class Play extends Phaser.State {
 
 	gameOver(why) {
 		this.game.time.events.remove(this.game.gameTimer);
+		window.clearInterval(this.rotateGemsTimer);
 		this.game.IS_GAME_OVER = true;
 		this.saveHighestScore();
 
 		if (why === 'time-up') {
 			this.game.textTimeUp.body.allowGravity = true;
 			this.game.time.events.add(Phaser.Timer.SECOND * 2, this.moveDownTextTimeUp, this);
-			this.explodeAllGems();
+			this.game.gems.explodeAll();
 
 		} else if (why === 'no-turns') {
 			this.game.textGameOver.body.allowGravity = true;
-			this.game.time.events.remove(this.game.rotateGemsLoop);
-			this.game.time.events.add(Phaser.Timer.SECOND, this.explodeAllGems, this);
+			this.game.time.events.add(Phaser.Timer.SECOND, () => {
+				this.game.gems.explodeAll();
+			}, this);
 			this.game.time.events.add(Phaser.Timer.SECOND * 2, this.moveDownTextGameOver, this);
 		}
 		
@@ -875,23 +479,15 @@ class Play extends Phaser.State {
 
 	saveHighestScore() {
 		const prevHighestScore = window.localStorage.getItem('highestScore');
+
 		if (!prevHighestScore) {
 			window.localStorage.setItem('highestScore', this.game.SCORE);
 		} else {
+
 			if (prevHighestScore < this.game.SCORE) {
 				window.localStorage.setItem('highestScore', this.game.SCORE);
 			}
 		}
-	}
-
-
-	explodeAllGems() {
-		const allIDs = [];
-		this.game.gemsGroup.forEach(gem => {
-			gem.input.disableDrag();
-			allIDs.push(gem.name);
-		});
-		this.explodeGems(allIDs);
 	}
 
 
@@ -918,29 +514,62 @@ class Play extends Phaser.State {
 
 
 	blinkTimerText() {
+		const BLINK_TIME = 500; // in ms
+
 		this.game.timerText.alpha = 1;
-		this.game.time.events.add(500, () => {
+
+		const blinkTimer = window.setTimeout(() => {
+			window.clearTimeout(blinkTimer);
 			this.game.timerText.alpha = 0;
-		}, this);
+		}, BLINK_TIME);
 	}
 
 
-	countdownToHint() {
-		this.game.time.events.remove(this.game.hintTimer);
-		this.game.hintTimer = this.game.time.events.loop(Phaser.Timer.SECOND * 10, this.showHint, this);
+	startGameTimeLoops() {
+		this.game.gameTimer = this.game.time.events.loop(Phaser.Timer.SECOND, this.updateTime, this);
+
+		this.rotateGemsTimer = window.setInterval(() => {
+			this.game.gems.rotate();
+		}, this.ROTATE_GEMS_COUNTDOWN_TIME * 1000);
+
+		this.countDownToHint();
 	}
 
 
-	showHint() {
-		const gemHintID = this.MATRIX.getGemHintID();
-		const gem = this.game.gemsGroup.getByName(gemHintID);
-		const shadow = this.game.shadowsGroup.getByName(gemHintID);
+	checkTutorialIsShown() {
+		const isShown = window.sessionStorage.getItem('isTutorialShown');
+		if (!isShown)
+			return false;
+		else
+			return true;
+	}
 
-		if (!gem) return;
-		this.game.add.tween(gem).to({y: gem.y - gem.height * .05}, 100, Phaser.Easing.Linear.None, true, 0, 0, true);
 
-		if (!shadow) return;
-		this.game.add.tween(shadow).to({y: gem.y + this.game.SHADOW_MARGIN}, 100, Phaser.Easing.Linear.None, true, 0, 0, true);
+	showTutorial() {
+		const WAIT_BEFORE_SHOW_HAND = 600;
+		this.waitBeforeShowHandTimer = window.setTimeout(() => {
+			this.hand.show();
+		}, WAIT_BEFORE_SHOW_HAND);
+	}
+
+
+	async removeTutorial() {
+		try {
+			await this.hand.remove();
+
+		} catch(e) { console.log(e); }
+
+		window.sessionStorage.setItem('isTutorialShown', 'true');
+		this.startGameTimeLoops();
+	}
+
+
+	countDownToHint() {
+		window.clearInterval(this.hintCountDownTimer);
+
+		this.hintCountDownTimer = window.setInterval(() => {
+			this.hint.show();
+		}, this.SHOW_HINT_COUNTDOWN_TIME * 1000);
 	}
 
 
@@ -954,7 +583,7 @@ class Play extends Phaser.State {
 		const highestScore = window.localStorage.getItem('highestScore');
 
 		// 'YOUR SCORE' text
-		const yourScoreText = this.game.yourScoreText = this.game.add.text(0, 0, 'YOUR SCORE:  ' + this.formatScore(this.game.SCORE));
+		const yourScoreText = this.yourScoreText = this.game.add.text(0, 0, 'YOUR SCORE:  ' + this.formatScore(this.game.SCORE));
 		yourScoreText.font = 'Fredoka One';
 		yourScoreText.fontSize = this.world.height / window.devicePixelRatio / 11;
 		yourScoreText.fill = '#ff5050';
@@ -1021,8 +650,8 @@ class Play extends Phaser.State {
 
 
 	rollDonut() {
-		this.world.swap(this.game.bigDonut, this.game.yourScoreText);
-		this.world.swap(this.game.donutShadow, this.game.yourScoreText);
+		this.world.swap(this.game.bigDonut, this.yourScoreText);
+		this.world.swap(this.game.donutShadow, this.yourScoreText);
 		this.world.swap(this.game.bigDonut, this.game.highestScoreText);
 		this.world.swap(this.game.donutShadow, this.game.highestScoreText);
 		this.world.swap(this.game.bigDonut, this.game.tapToContinueText);
@@ -1032,13 +661,16 @@ class Play extends Phaser.State {
 
 
 	clearScreen() {
-		this.game.yourScoreText.kill();
+		window.clearInterval(this.rotateGemsTimer);
+		this.yourScoreText.kill();
 		this.game.highestScoreText.kill();
 		this.game.tapToContinueText.kill();
 		this.game.time.events.removeAll();
 		this.game.scoreBoard.kill();
 		this.game.floorForScoreBoard.kill();
 		this.game.scoreText.kill();
+		this.game.timeBoard.kill();
+		this.game.floorForTimeBoard.kill();
 		this.game.timerText.kill();
 		this.game.textTimeUp.kill();
 		this.game.floorForTextTimeUp.kill();

@@ -36,6 +36,7 @@ class Preload extends Phaser.State {
 		this.game.load.image('gem-a', './assets/images/game/gem-a.png');
 		this.game.load.image('gem-b', './assets/images/game/gem-b.png');
 		this.game.load.image('gem-shadow', './assets/images/game/shadow.png');
+		this.game.load.image('hand', './assets/images/game/hand.png');
 		this.game.load.image('text-timeup', './assets/images/text-timeup.png');
 		this.game.load.image('particle-0', './assets/images/particles/particle-0.png');
 		this.game.load.image('particle-1', './assets/images/particles/particle-1.png');
