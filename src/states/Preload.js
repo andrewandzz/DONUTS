@@ -2,8 +2,6 @@ import WebFontLoader from 'webfontloader';
 
 class Preload extends Phaser.State {
 	preload() {
-		this.physics.startSystem(Phaser.Physics.ARCADE);
-
 		this.stage.backgroundColor = '#fff';
 
 		// assets for main menu
@@ -54,6 +52,8 @@ class Preload extends Phaser.State {
 			},
 			active: this.fontsLoaded
 		});
+
+		this.physics.startSystem(Phaser.Physics.ARCADE);
 	}
 
 	create() {

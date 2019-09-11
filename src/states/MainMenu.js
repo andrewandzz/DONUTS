@@ -1,6 +1,9 @@
+import ScoreBoard from '../objects/ScoreBoard';
+
 class MainMenu extends Phaser.State {
 	init(fromPlayMode) {
-		this.fromPlayMode = fromPlayMode; // are we back from play mode
+		// are we back from play mode, then don't replay the music
+		this.fromPlayMode = fromPlayMode;
 	}
 
 	create() {
@@ -9,8 +12,6 @@ class MainMenu extends Phaser.State {
 		const BTN_PLAY_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 4.5;
 		const BTN_PLAY_MARGIN_BOTTOM = this.world.height * .85;
 		const BTN_SOUND_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 10;
-		const SCORE_BOARD_MAX_HEIGHT = this.world.height / window.devicePixelRatio / 7;
-		const SCORE_BOARD_MARGIN_TOP = .05;
 
 
 		this.BIAS = 30; // it will be used as +- bias when catching big donut on some position
@@ -26,7 +27,7 @@ class MainMenu extends Phaser.State {
 		background.scale.setTo(backgroundScale);
 
 
-		// LOGO	
+		// LOGO
 		const logo = this.game.logo = this.game.add.sprite(this.world.centerX, 0, 'logo');
 		if (logo.height > LOGO_MAX_HEIGHT) {
 			const logoScale = LOGO_MAX_HEIGHT / logo.height;
@@ -109,44 +110,6 @@ class MainMenu extends Phaser.State {
 		donutShadow.anchor.setTo(.5);
 
 
-		// SCORE BOARD
-		const scoreBoard = this.game.scoreBoard = this.game.add.sprite(this.world.centerX, 0, 'score-board');
-
-		if (scoreBoard.height > SCORE_BOARD_MAX_HEIGHT) {
-			const scoreBoardScale = SCORE_BOARD_MAX_HEIGHT / scoreBoard.height;
-			scoreBoard.scale.setTo(scoreBoardScale);
-		}
-
-		scoreBoard.anchor.setTo(.5);
-		scoreBoard.bottom = 0;
-		// physics
-		this.game.physics.arcade.enable(scoreBoard);
-		scoreBoard.body.gravity.y = 2000;
-		scoreBoard.body.bounce.y = .2;
-		scoreBoard.angle = -.5;
-		scoreBoard.body.allowGravity = false;
-
-
-		// FLOOR FOR SCORE BOARD
-		const floorForScoreBoard = this.game.floorForScoreBoard = this.game.add.sprite(this.world.centerX,
-			scoreBoard.height + scoreBoard.height * SCORE_BOARD_MARGIN_TOP,
-			'transparent');
-		// physics
-		this.game.physics.arcade.enable(floorForScoreBoard);
-		floorForScoreBoard.body.immovable = true;
-
-
-		// SCORE TEXT
-		const scoreText = this.game.scoreText = this.game.add.text(
-			0, 0, '0');
-		scoreText.font = 'Fredoka One';
-		scoreText.fontSize = scoreBoard.height / 7 * 4 * window.devicePixelRatio;
-		scoreText.fill = '#fff';
-		scoreText.align = 'center';
-		scoreText.anchor.setTo(.5);
-		scoreBoard.addChild(scoreText);
-
-
 		// MUSIC
 		const bgMusic = this.game.add.audio('background');
 		bgMusic.volume = .7;
@@ -157,16 +120,14 @@ class MainMenu extends Phaser.State {
 			bgMusic.play();
 		}
 
+		// SCORE BOARD
+		this.game.ScoreBoard = new ScoreBoard(this.game);
+
 
 		// SELECT SOUND
 		this.game.soundSelect = this.game.sound.add('select');
 		this.game.soundSelect.volume = .5;
 		this.game.soundSelect.loop = false;
-		
-
-		// change world bounds for being able to place logo above the screen
-		this.game.physics.arcade.setBounds(0, -this.game.logo.height, this.world.width,
-			this.world.height + this.game.logo.height);
 
 
 		this.game.time.events.loop(Phaser.Timer.SECOND * 5, this.jumpLogo, this);
@@ -196,7 +157,7 @@ class MainMenu extends Phaser.State {
 		// donut is touching the left side of the screen
 		if (this.game.bigDonut.x > 0 - this.BIAS
 			&& this.game.bigDonut.x < 0 + this.BIAS) {
-			this.openScoreBoard();
+			this.game.ScoreBoard.open();
 		}
 
 		// donut is behind the screen
@@ -278,11 +239,6 @@ class MainMenu extends Phaser.State {
 		this.game.btnPlay.kill();
 		this.game.floorForBtnPlay.kill();
 		this.game.time.events.removeAll();
-	}
-
-
-	openScoreBoard() {
-		this.game.scoreBoard.body.allowGravity = true;
 	}
 
 

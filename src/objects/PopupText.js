@@ -1,7 +1,7 @@
 class PopupText {
-	constructor(game, matrix) {
+	constructor(game) {
 		this.game = game;
-		this.matrix = matrix;
+		this.Matrix = game.Matrix;
 	}
 
 	show(groupOfGemIDs, textToShow) {
@@ -43,25 +43,28 @@ class PopupText {
 
 
 	_getPosition(groupOfGemIDs) {
-		// 1. find position of the first and the last gem in group
-		// 2. get center position
-
-
-		// 1.
-		const firstGemID = groupOfGemIDs[0];
-		const lastGemID = groupOfGemIDs[groupOfGemIDs.length - 1];
-		const firstGemCell = this.matrix.getGemCell(firstGemID);
-		const lastGemCell = this.matrix.getGemCell(lastGemID);
-		
-		if (!firstGemCell || !lastGemCell) return {
+		const centerPosition = {
 			x: this.game.world.width / 2,
 			y: this.game.world.height / 2
 		};
 
-		const firstGemPosition = this.game.gems._getScreenPositionByCell(firstGemCell);
-		const lastGemPosition = this.game.gems._getScreenPositionByCell(lastGemCell);
+		if (!groupOfGemIDs) return centerPosition;
 
-		// 2.
+		// 1. find position of the first and the last gem in group
+		// 2. get center position
+
+		// 1 step
+		const firstGemID = groupOfGemIDs[0];
+		const lastGemID = groupOfGemIDs[groupOfGemIDs.length - 1];
+		const firstGemCell = this.Matrix.getGemCell(firstGemID);
+		const lastGemCell = this.Matrix.getGemCell(lastGemID);
+		
+		if (!firstGemCell || !lastGemCell) return centerPosition;
+
+		const firstGemPosition = this.game.Gems._getScreenPositionByCell(firstGemCell);
+		const lastGemPosition = this.game.Gems._getScreenPositionByCell(lastGemCell);
+
+		// 2 step
 		const distanceX = Math.max(firstGemPosition.x, lastGemPosition.x) - Math.min(firstGemPosition.x, lastGemPosition.x);
 		const textX = Math.min(firstGemPosition.x, lastGemPosition.x) + distanceX / 2;
 

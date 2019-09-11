@@ -1,8 +1,7 @@
 class Matrix {
-	constructor(COLS, CELLS, PLAY) {
+	constructor(COLS, CELLS) {
 		this.COLS = COLS;
 		this.CELLS = CELLS;
-		this.PLAY = PLAY;
 		this.gemHintID = null;
 		this.gemHintDirection = null;
 		this.matchedIDsArrays = [];
@@ -469,13 +468,16 @@ class Matrix {
 
 		let gem1Data = this.MATRIX[gem1Cell.col][gem1Cell.cell];
 		let gem2Data = this.MATRIX[gem2Cell.col][gem2Cell.cell];
+
 		const temp1 = Object.assign(gem1Data);
 		const temp2 = Object.assign(gem2Data);
+
+		delete this.MATRIX[gem1Cell.col][gem1Cell.cell];
+		delete this.MATRIX[gem2Cell.col][gem2Cell.cell];
 
 		// switch them
 		this.MATRIX[gem1Cell.col][gem1Cell.cell] = Object.assign(temp2);
 		this.MATRIX[gem2Cell.col][gem2Cell.cell] = Object.assign(temp1);
-
 	}
 
 

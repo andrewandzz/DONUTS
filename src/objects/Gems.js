@@ -1,7 +1,7 @@
 class Gems {
-	constructor(game, matrix) {
+	constructor(game) {
 		this.game = game;
-		this.matrix = matrix;
+		this.Matrix = game.Matrix;
 		this.GEM_SIZE = this.game.GEM_SIZE;
 		this.SHADOW_MARGIN = this.GEM_SIZE * .03;
 		this.notRotateNumbers = ['7', '8', '9', 'a', 'b']; // gem numbers, that we CAN'T rotate
@@ -23,10 +23,12 @@ class Gems {
 
 
 	render() {
+		if (this.game.IS_GAME_OVER) return;
+		
 		return new Promise(resolve => {
-			const matrix = this.matrix.getMatrix();
+			const Matrix = this.Matrix.getMatrix();
 
-			matrix.forEach((colArr, colIndex) => {
+			Matrix.forEach((colArr, colIndex) => {
 				colArr.forEach((gemData, cellIndex) => {
 					// if we already have gem with this ID (name)
 					if (this.gemsGroup.getByName(gemData.id)) return;
@@ -121,7 +123,7 @@ class Gems {
 
 		// if stopped dragging when not overlapping the next gem
 		if (!this.game.gemsOverlap) {
-			const cell = this.matrix.getGemCell(gem.name);
+			const cell = this.Matrix.getGemCell(gem.name);
 			const nativePosition = this._getScreenPositionByCell(cell);
 
 			this._moveToPosition(gem, nativePosition);
@@ -148,28 +150,27 @@ class Gems {
 	}
 
 
-	_moveToPosition(gem, newPosition) {
+_moveToPosition(gem, newPosition) {
+		const newX = newPosition.x;
+		const newY = newPosition.y;
+		const startTime = performance.now();
+		const DURATION = 200;
+		const startX = gem.left;
+		const startY = gem.top;
+		const leftDist = newX - startX;
+		const topDist = newY - startY;
+
+		const shadow = this.shadowsGroup.getByName(gem.name);
+
+		let progress = 0;
+
 		return new Promise(resolve => {
-			const newX = newPosition.x;
-			const newY = newPosition.y;
-			const startTime = performance.now();
-			const DURATION = 200;
-			const startX = gem.left;
-			const startY = gem.top;
-			const leftDist = newX - startX;
-			const topDist = newY - startY;
-
-			const shadow = this.shadowsGroup.getByName(gem.name);
-
-			let progress = 0;
-
 			const move = curTime => {
 				progress = (curTime - startTime) / DURATION;
 
 				if (progress >= 1) {
 					// moving is finished
 					progress = 1;
-					this.game.gemsOverlap = false;
 					resolve();
 				}
 
@@ -211,18 +212,15 @@ class Gems {
 
 
 	async swap(gem1, gem2) {
-		const gem1Cell = this.matrix.getGemCell(gem1.name);
+		const gem1Cell = this.Matrix.getGemCell(gem1.name);
 		const gem1Position = this._getScreenPositionByCell(gem1Cell);
-		this._moveToPosition(gem2, gem1Position);
-
-		const gem2Cell = this.matrix.getGemCell(gem2.name);
+		const gem2Cell = this.Matrix.getGemCell(gem2.name);
 		const gem2Position = this._getScreenPositionByCell(gem2Cell);
-		await this._moveToPosition(gem1, gem2Position);
-		
-		this.matrix.swapGems(gem1.name, gem2.name);
 
-		gem1.input.enableDrag(false);
-		gem2.input.enableDrag(false);
+		this.Matrix.swapGems(gem1.name, gem2.name);
+
+		this._moveToPosition(gem2, gem1Position);
+		await this._moveToPosition(gem1, gem2Position);
 	}
 
 
@@ -318,23 +316,20 @@ class Gems {
 
 
 	moveDownRest() {
-		this.gemsGroup.forEach(gem => {
-			this._moveToMatrixPosition(gem);
-		});
-
 		return new Promise(resolve => {
-			setTimeout(() => {
-				resolve()
-			}, 250);
+			this.gemsGroup.forEach(async gem => {
+				await this._moveToMatrixPosition(gem);
+				resolve();
+			});
 		});
 	}
 
 
-	_moveToMatrixPosition(gem) {
-		const gemCell = this.matrix.getGemCell(gem.name);
+	async _moveToMatrixPosition(gem) {
+		const gemCell = this.Matrix.getGemCell(gem.name);
 		const newPosition = this._getScreenPositionByCell(gemCell);
 
-		this._moveToPosition(gem, newPosition);
+		await this._moveToPosition(gem, newPosition);
 	}
 
 
