@@ -146,13 +146,13 @@ class Play extends Phaser.State {
 
 
 	async processMatched(matchedIDs) {
+		this.countDownToHint();
 		this.calculatePoints(this.game.Matrix.getMatchedIDsArrays());
 		this.game.Matrix.removeMatchedGems();
 		await this.game.Gems.explode(matchedIDs);
 		await this.game.Gems.moveDownRest();
 		this.game.Matrix.addNewGems();
 		await this.game.Gems.render();
-		this.countDownToHint();
 	}
 
 
@@ -180,7 +180,7 @@ class Play extends Phaser.State {
 
 	calculatePoints(matchedIDsArrays) {
 		const NUM_OF_GROUPS_FOR_BONUS = 1;
-		const TIME_TO_ADD = 10; // in seconds
+		const TIME_TO_ADD = 5; // in seconds
 		const numberOfGroups = matchedIDsArrays.length;
 
 		matchedIDsArrays.forEach(group => {
