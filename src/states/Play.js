@@ -173,7 +173,7 @@ class Play extends Phaser.State {
 		this.game.time.events.add(Phaser.Timer.SECOND, () => {
 			this.ignoreCollision = true;
 			this.game.gemsGroup.setAll('inputEnabled', false);
-			this.GameOver.noTurns();
+			this.game.GameOver.noTurns();
 		});
 	}
 

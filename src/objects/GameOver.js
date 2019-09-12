@@ -90,16 +90,17 @@ class GameOver {
 
 	noTurns() {
 		this.game.IS_GAME_OVER = true;
+		this._saveHighestScore();
 		this.textGameOver.body.allowGravity = true;
 		this.game.time.events.add(Phaser.Timer.SECOND, () => { this.game.Gems.explodeAll(); });
-		this.game.time.events.add(Phaser.Timer.SECOND * 3, () => {
+		this.game.time.events.add(Phaser.Timer.SECOND * 2, () => {
 			this.game.moveDownTextGameOver = true;
 			this.game.TimeBoard.shiftUp();
 		}, this);
-		this.game.time.events.add(Phaser.Timer.SECOND * 3.1, () => {
+		this.game.time.events.add(Phaser.Timer.SECOND * 2.1, () => {
 			this.game.ScoreBoard.shiftUp();
 		});
-		this.game.time.events.add(Phaser.Timer.SECOND * 3.2, () => {
+		this.game.time.events.add(Phaser.Timer.SECOND * 2.2, () => {
 			this._showUserScore();
 		});
 	}
