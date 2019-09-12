@@ -162,7 +162,6 @@ class Play extends Phaser.State {
 		this.game.gemsGroup.setAll('inputEnabled', true);
 		gem1.input.enableDrag(false);
 		gem2.input.enableDrag(false);
-		this.checkForPosibles();
 		this.countDownToHint();
 	}
 
