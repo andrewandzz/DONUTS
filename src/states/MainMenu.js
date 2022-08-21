@@ -112,7 +112,7 @@ class MainMenu extends Phaser.State {
 
 		// MUSIC
 		const bgMusic = this.game.add.audio('background');
-		bgMusic.volume = .7;
+		bgMusic.volume = .5;
 		bgMusic.loop = true;
 		this.game.sound.mute = this.isMutedStateSaved();
 
@@ -126,7 +126,7 @@ class MainMenu extends Phaser.State {
 
 		// SELECT SOUND
 		this.game.soundSelect = this.game.sound.add('select');
-		this.game.soundSelect.volume = .5;
+		this.game.soundSelect.volume = .3;
 		this.game.soundSelect.loop = false;
 
 

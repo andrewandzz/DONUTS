@@ -68,7 +68,7 @@ class Play extends Phaser.State {
 
 		// SOUND KILL
 		this.game.soundKill = this.game.sound.add('kill');
-		this.game.soundKill.volume = .5;
+		this.game.soundKill.volume = .3;
 		this.game.soundKill.loop = false;
 	}
 
